@@ -26,7 +26,7 @@ class ScheduleSimulator {
         ];
         this.assignedOffers = new Map(); // Map<planClave, Array<offer>>
         this.schedule = {};
-        this.filters = { program: '', day: '', time: '', aula: '', onlyEtEp: true, onlyEt: false, onlyEp: false, sugPairs: false, autoPair: false };
+        this.filters = { program: '', course: '', teacher: '', day: '', time: '', aula: '', onlyEtEp: true, onlyEt: false, onlyEp: false, sugPairs: false, autoPair: false };
         this.scheduleBlockedAll = false;
         this.scheduleBlockedAula = true;
         this.loadedAula = '';
@@ -173,6 +173,10 @@ class ScheduleSimulator {
                 if (isAssigned) return true;
 
                 if (this.filters.program && !plan.name.toLowerCase().includes(this.filters.program.toLowerCase())) return false;
+                if (this.filters.course && !o.sessions[0].NombreCurso.toLowerCase().includes(this.filters.course.toLowerCase())) return false;
+
+                const docenteName = o.sessions[0].NOMBRES ? `${o.sessions[0].APELLIDOPATERNO} ${o.sessions[0].APELLIDOMATERNO} ${o.sessions[0].NOMBRES}`.toLowerCase() : '';
+                if (this.filters.teacher && !docenteName.includes(this.filters.teacher.toLowerCase())) return false;
 
                 // Filter by ET/EP
                 if (this.filters.onlyEtEp && !(o.isTheoretical || o.isPractical)) return false;
@@ -332,6 +336,15 @@ class ScheduleSimulator {
             }
             if (this.filters.program && !plan.name.toLowerCase().includes(this.filters.program.toLowerCase())) {
                 visibleOffers = [];
+            }
+            if (this.filters.course) {
+                visibleOffers = visibleOffers.filter(o => o.sessions[0].NombreCurso.toLowerCase().includes(this.filters.course.toLowerCase()));
+            }
+            if (this.filters.teacher) {
+                visibleOffers = visibleOffers.filter(o => {
+                    const docenteName = o.sessions[0].NOMBRES ? `${o.sessions[0].APELLIDOPATERNO} ${o.sessions[0].APELLIDOMATERNO} ${o.sessions[0].NOMBRES}`.toLowerCase() : '';
+                    return docenteName.includes(this.filters.teacher.toLowerCase());
+                });
             }
             if (this.filters.day) {
                 visibleOffers = visibleOffers.filter(o => o.sessions.some(s => this.getDayNumber(s.CODIGODIA) == this.filters.day));
@@ -659,6 +672,30 @@ class ScheduleSimulator {
         const occupiedSlots = Object.keys(this.schedule).length;
         const pct = Math.round((occupiedSlots / totalSlots) * 100);
         document.getElementById('occupancy-pct').textContent = `${pct}%`;
+
+        // Calculate and display Aula Capacity based on the assigned offers for the currently loaded aula
+        let maxCap = 0;
+        if (this.loadedAula) {
+            this.assignedOffers.forEach(offers => {
+                offers.forEach(o => {
+                    const isAulaCourse = o.sessions.some(s => s.CODIGOAULA && s.CODIGOAULA.toString() == this.loadedAula);
+                    if (isAulaCourse && o.capacidad > maxCap) {
+                        maxCap = o.capacidad;
+                    }
+                });
+            });
+        }
+        document.getElementById('aula-capacity').textContent = maxCap > 0 ? maxCap : '-';
+    }
+
+    getTimestampString() {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        return `${yy}${mm}${dd}_${hh}${min}`;
     }
 
     downloadScheduleCSV() {
@@ -694,7 +731,7 @@ class ScheduleSimulator {
             });
         });
 
-        this.exportToCSV(rows, 'horario_actual.csv');
+        this.exportToCSV(rows, `horario_actual_${this.getTimestampString()}.csv`);
     }
 
     downloadSuggestionsCSV() {
@@ -743,7 +780,7 @@ class ScheduleSimulator {
             return;
         }
 
-        this.exportToCSV(rows, 'sugerencias.csv');
+        this.exportToCSV(rows, `sugerencias_${this.getTimestampString()}.csv`);
     }
 
     exportToCSV(rows, filename) {
@@ -824,6 +861,18 @@ class ScheduleSimulator {
             this.renderSuggestions();
         });
 
+        document.getElementById('filter-course').addEventListener('input', (e) => {
+            this.filters.course = e.target.value;
+            this.renderPlans();
+            this.renderSuggestions();
+        });
+
+        document.getElementById('filter-teacher').addEventListener('input', (e) => {
+            this.filters.teacher = e.target.value;
+            this.renderPlans();
+            this.renderSuggestions();
+        });
+
         document.getElementById('filter-day').addEventListener('change', (e) => {
             this.filters.day = e.target.value;
             this.renderPlans();
@@ -877,6 +926,112 @@ class ScheduleSimulator {
             this.renderPlans();
             this.renderSuggestions();
         });
+
+        document.getElementById('btn-save-json').addEventListener('click', () => {
+            this.exportSessionJSON();
+        });
+
+        document.getElementById('btn-load-json').addEventListener('click', () => {
+            if (this.scheduleBlockedAll) {
+                Swal.fire('Bloqueado', 'El horario está completamente bloqueado. Desmarca "Bloquear Todo" para cargar un lienzo.', 'warning');
+                return;
+            }
+            document.getElementById('file-load-json').click();
+        });
+
+        document.getElementById('file-load-json').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    this.importSessionJSON(data);
+                    // Reset input
+                    e.target.value = '';
+                } catch (error) {
+                    Swal.fire('Error', 'El archivo no tiene un formato válido para cargar.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    exportSessionJSON() {
+        if (this.assignedOffers.size === 0) {
+            Swal.fire('Vacío', 'No hay datos en el lienzo para guardar.', 'info');
+            return;
+        }
+
+        const sessionData = {
+            loadedAula: this.loadedAula,
+            assignedLog: []
+        };
+
+        // We export the exact 'consecutivo' and 'planClave' so we can just re-assign them properly upon load
+        this.assignedOffers.forEach((offers, planClave) => {
+            offers.forEach(o => {
+                sessionData.assignedLog.push({
+                    planClave: planClave,
+                    consecutivo: o.consecutivo
+                });
+            });
+        });
+
+        const jsonString = JSON.stringify(sessionData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `lienzo_${this.getTimestampString()}.json`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    importSessionJSON(data) {
+        if (!data || !Array.isArray(data.assignedLog)) {
+            Swal.fire('Error', 'El archivo no tiene el formato esperado.', 'error');
+            return;
+        }
+
+        // Reset canvas first
+        this.assignedOffers.clear();
+        this.schedule = {};
+
+        let successCount = 0;
+        let conflictCount = 0;
+
+        const grouped = this.getGroupedOffers();
+
+        if (data.loadedAula) {
+            this.loadedAula = data.loadedAula;
+            document.getElementById('filter-aula').value = data.loadedAula;
+        }
+
+        data.assignedLog.forEach(log => {
+            const planGroup = grouped[log.planClave];
+            if (planGroup) {
+                const offerToAssign = planGroup.offers.find(o => o.consecutivo === log.consecutivo);
+                if (offerToAssign) {
+                    if (this.canAssign(offerToAssign)) {
+                        this.assignOffer(log.planClave, [offerToAssign]);
+                        successCount++;
+                    } else {
+                        conflictCount++;
+                    }
+                }
+            }
+        });
+
+        this.updateUI();
+
+        if (conflictCount > 0) {
+            Swal.fire('Lienzo Cargado Parcialmente', `Se restauraron ${successCount} clases, pero hubo ${conflictCount} clases con conflictos u omitidas.`, 'warning');
+        } else {
+            Swal.fire('Lienzo Restaurado', `Se restauraron ${successCount} clases correctamente.`, 'success');
+        }
     }
 
     loadClassroomOffers(aulaCode) {

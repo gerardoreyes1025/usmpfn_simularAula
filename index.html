@@ -28,6 +28,10 @@
                     <span class="label">Planes Asignados:</span>
                     <span id="assigned-plans">0/8</span>
                 </div>
+                <div class="stat-item">
+                    <span class="label">Capacidad Aula:</span>
+                    <span id="aula-capacity">-</span>
+                </div>
             </div>
             <div class="actions">
                 <label class="checkbox-label" style="margin-right: 0.5rem;"
@@ -38,6 +42,9 @@
                     title="Evita cualquier modificación en el horario actual.">
                     <input type="checkbox" id="block-all"> Bloquear Todo
                 </label>
+                <button id="btn-save-json" class="btn-primary" title="Descargar la sesión actual en formato JSON">Guardar Lienzo</button>
+                <button id="btn-load-json" class="btn-primary" style="background-color: #f7b731; color: #333;" title="Cargar una sesión previa desde un archivo JSON">Cargar Lienzo</button>
+                <input type="file" id="file-load-json" accept=".json" style="display: none;">
                 <button id="auto-optimize" class="btn-primary">Optimización Automática</button>
                 <button id="reset-schedule" class="btn-secondary">Reiniciar</button>
             </div>
@@ -50,6 +57,8 @@
                     <p>Filtros y opciones de visualización</p>
                     <div class="filter-group">
                         <input type="text" id="filter-program" placeholder="Filtrar por programa...">
+                        <input type="text" id="filter-course" placeholder="Filtrar por nombre del curso..." style="margin-top: 0.5rem;">
+                        <input type="text" id="filter-teacher" placeholder="Filtrar por nombre del docente..." style="margin-top: 0.5rem;">
                         <div class="filter-row">
                             <select id="filter-day">
                                 <option value="">Todos los días</option>
