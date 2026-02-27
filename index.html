@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Aula - Planificación Eficiente</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <span class="icon">🏫</span>
+                <h1>AulaLibre <span>Simulador</span></h1>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">Ocupación:</span>
+                    <span id="occupancy-pct">0%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Planes Asignados:</span>
+                    <span id="assigned-plans">0/8</span>
+                </div>
+            </div>
+            <div class="actions">
+                <label class="checkbox-label" style="margin-right: 0.5rem;"
+                    title="Evita eliminar o asignar materias del aula cargada.">
+                    <input type="checkbox" id="block-aula" checked> Bloquear Aula
+                </label>
+                <label class="checkbox-label" style="margin-right: 1rem;"
+                    title="Evita cualquier modificación en el horario actual.">
+                    <input type="checkbox" id="block-all"> Bloquear Todo
+                </label>
+                <button id="auto-optimize" class="btn-primary">Optimización Automática</button>
+                <button id="reset-schedule" class="btn-secondary">Reiniciar</button>
+            </div>
+        </header>
+
+        <main>
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h2>Panel de Control</h2>
+                    <p>Filtros y opciones de visualización</p>
+                    <div class="filter-group">
+                        <input type="text" id="filter-program" placeholder="Filtrar por programa...">
+                        <div class="filter-row">
+                            <select id="filter-day">
+                                <option value="">Todos los días</option>
+                                <option value="1">Lunes</option>
+                                <option value="2">Martes</option>
+                                <option value="3">Miércoles</option>
+                                <option value="4">Jueves</option>
+                                <option value="5">Viernes</option>
+                                <option value="6">Sábado</option>
+                            </select>
+                            <select id="filter-time">
+                                <option value="">Cualquier hora</option>
+                                <option value="07:16">07:16</option>
+                                <option value="08:01">08:01</option>
+                                <option value="08:46">08:46</option>
+                                <option value="09:31">09:31</option>
+                                <option value="10:16">10:16</option>
+                                <option value="11:01">11:01</option>
+                                <option value="11:46">11:46</option>
+                                <option value="12:31">12:31</option>
+                                <option value="13:16">13:16</option>
+                                <option value="14:01">14:01</option>
+                                <option value="14:46">14:46</option>
+                                <option value="15:31">15:31</option>
+                                <option value="16:16">16:16</option>
+                                <option value="17:01">17:01</option>
+                                <option value="17:46">17:46</option>
+                                <option value="18:31">18:31</option>
+                                <option value="19:16">19:16</option>
+                                <option value="20:01">20:01</option>
+                                <option value="20:46">20:46</option>
+                                <option value="21:31">21:31</option>
+                                <option value="22:16">22:16</option>
+                            </select>
+                        </div>
+                        <div class="filter-row">
+                            <input type="text" id="filter-aula" placeholder="Filtrar por aula (ej. 2101204)..."
+                                style="flex: 1;">
+                            <button id="load-aula" class="btn-primary"
+                                style="padding: 0.5rem; font-size: 0.8rem; white-space: nowrap;">Cargar Aula</button>
+                        </div>
+                        <div class="filter-row">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="filter-et-ep" checked> Solo ET / EP
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="filter-et"> Solo ET
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="filter-ep"> Solo EP
+                            </label>
+                        </div>
+                        <div class="filter-row" style="margin-top: 0.5rem; justify-content: space-between;">
+                            <label class="checkbox-label" title="Filtrar sugerencias por pares consecutivos (ET+EP)">
+                                <input type="checkbox" id="filter-sug-pairs"> Sugerencias (ET+EP)
+                            </label>
+                            <label class="checkbox-label"
+                                title="Asignar automáticamente Teoría y Práctica juntas si hay espacio">
+                                <input type="checkbox" id="auto-assign-pair"> Auto-Asignar Par
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="lists-container">
+                    <div class="list-section-header" id="toggle-ofertas">
+                        <div class="header-title">
+                            <span class="collapse-icon" id="icon-ofertas">▼</span>
+                            <h3>Ofertas Disponibles</h3>
+                        </div>
+                        <button id="download-schedule" class="btn-icon" title="Descargar Horario Actual (CSV)">⬇️
+                            CSV</button>
+                    </div>
+                    <div id="plans-list" class="plans-list">
+                        <!-- Plans and their offers will be injected here -->
+                    </div>
+
+                    <div class="list-section-header suggestions-header" id="toggle-sugerencias">
+                        <div class="header-title">
+                            <span class="collapse-icon" id="icon-sugerencias">▼</span>
+                            <h3>Sugerencias (Huecos Libres)</h3>
+                            <span id="suggestions-count" class="badge">0</span>
+                        </div>
+                        <button id="download-suggestions" class="btn-icon" title="Descargar Sugerencias (CSV)">⬇️
+                            CSV</button>
+                    </div>
+
+                    <div id="suggestions-list" class="plans-list suggestions-list">
+                        <!-- Compatible suggestions will be injected here -->
+                    </div>
+                </div>
+            </aside>
+
+            <section class="schedule-container">
+                <div class="schedule-grid" id="schedule-grid">
+                    <!-- Header row for days -->
+                    <div class="grid-header">Hora</div>
+                    <div class="grid-header">Lunes</div>
+                    <div class="grid-header">Martes</div>
+                    <div class="grid-header">Miércoles</div>
+                    <div class="grid-header">Jueves</div>
+                    <div class="grid-header">Viernes</div>
+                    <div class="grid-header">Sábado</div>
+
+                    <!-- Time slots will be injected here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
