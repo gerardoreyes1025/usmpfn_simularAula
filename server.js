@@ -49,9 +49,9 @@ app.get('/api/ofertas', async (req, res) => {
             per.APELLIDOMATERNO,
             per.NOMBRES
         FROM planestudios pl
-        INNER JOIN paqueteeventos pe ON pl.Clave = pe.Claveplanestudios
-        INNER JOIN evento e ON pe.ABREVIATURA = e.ABREVIATURAPAQUETEEVENTOS
-        INNER JOIN oferta o ON e.CLAVE = o.CLAVEEVENTO
+        INNER JOIN paqueteeventos2 pe ON pl.Clave = pe.Claveplanestudios
+        INNER JOIN evento2 e ON pe.ABREVIATURA = e.ABREVIATURAPAQUETEEVENTOS
+        INNER JOIN oferta2 o ON e.CLAVE = o.CLAVEEVENTO
         -- Relación con aula y pabellón
         INNER JOIN aula a ON o.CODIGOAULA = a.CODIGO 
         INNER JOIN pabellon p ON a.CODIGOPABELLON = p.CODIGO

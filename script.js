@@ -31,8 +31,53 @@ class ScheduleSimulator {
         this.scheduleBlockedAula = true;
         this.loadedAula = '';
         this.collapsedPlans = new Set();
+        this.theme = localStorage.getItem('theme') || 'dark';
+        this.initTheme();
 
         this.init();
+    }
+
+    // initTheme() {
+    //     if (this.theme === 'light') {
+    //         document.body.classList.add('light-mode');
+    //         const icon = document.querySelector('#theme-toggle .theme-icon');
+    //         if (icon) icon.textContent = '☀️';
+    //     }
+    // }
+
+    // toggleTheme() {
+    //     this.theme = this.theme === 'dark' ? 'light' : 'dark';
+    //     document.body.classList.toggle('light-mode');
+    //     const icon = document.querySelector('#theme-toggle .theme-icon');
+    //     if (icon) icon.textContent = this.theme === 'dark' ? '🌙' : '☀️';
+    //     localStorage.setItem('theme', this.theme);
+    // }
+
+    initTheme() {
+        const icon = document.querySelector('#theme-toggle .theme-icon');
+
+        if (this.theme === 'light') {
+            document.documentElement.classList.add('light-mode');
+            if (icon) icon.textContent = '☀️';
+        }
+    }
+
+    toggleTheme() {
+        const icon = document.querySelector('#theme-toggle .theme-icon');
+
+        const isLight = document.documentElement.classList.toggle('light-mode');
+        this.theme = isLight ? 'light' : 'dark';
+
+        if (icon) {
+            icon.textContent = isLight ? '☀️' : '🌙';
+        }
+
+        localStorage.setItem('theme', this.theme);
+    }
+
+    toggleFilters() {
+        const container = document.querySelector('.lists-container');
+        container.classList.toggle('panel-collapsed');
     }
 
     async init() {
@@ -927,6 +972,14 @@ class ScheduleSimulator {
             this.renderSuggestions();
         });
 
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            this.toggleTheme();
+        });
+
+        document.getElementById('toggle-filters').addEventListener('click', () => {
+            this.toggleFilters();
+        });
+
         document.getElementById('btn-save-json').addEventListener('click', () => {
             this.exportSessionJSON();
         });
@@ -1072,24 +1125,58 @@ class ScheduleSimulator {
     }
 
     autoOptimize() {
-        this.assignedOffers.clear();
-        this.schedule = {};
+        // We preserve what's currently assigned if it belongs to the loadedAula and block is on
+        if (this.scheduleBlockedAula && this.loadedAula) {
+            this.assignedOffers.forEach((offers, planClave) => {
+                const filtered = offers.filter(o => o.sessions.some(s => s.CODIGOAULA && s.CODIGOAULA.toString() == this.loadedAula));
+                if (filtered.length > 0) {
+                    this.assignedOffers.set(planClave, filtered);
+                } else {
+                    this.assignedOffers.delete(planClave);
+                }
+            });
+            // Rebuild schedule with only preserved ones
+            this.schedule = {};
+            this.assignedOffers.forEach((offers, planClave) => {
+                offers.forEach(o => {
+                    o.sessions.forEach(session => {
+                        const dayNum = this.getDayNumber(session.CODIGODIA);
+                        const slots = this.getSlotsForSession(session);
+                        slots.forEach(slot => {
+                            this.schedule[`${dayNum}-${slot.start}`] = {
+                                planClave,
+                                abreviatura: o.abreviatura,
+                                consecutivo: o.consecutivo,
+                                plan: o.sessions[0].PlanEstudio,
+                                curso: o.sessions[0].NombreCurso,
+                                aula: o.sessions[0].CODIGOAULA,
+                                docente: o.sessions[0].NOMBRES ? `${o.sessions[0].APELLIDOPATERNO} ${o.sessions[0].APELLIDOMATERNO}, ${o.sessions[0].NOMBRES}` : 'Sin asignar'
+                            };
+                        });
+                    });
+                });
+            });
+        } else {
+            this.assignedOffers.clear();
+            this.schedule = {};
+        }
 
         const grouped = this.getGroupedOffers();
         const planClaves = Object.keys(grouped);
 
         let classroomFull = false;
-        let iteration = 1;
-        const maxIterations = 20;
+        let cycle = 1; // 1 course per plan, then 2nd etc
+        const maxCycles = 15;
 
-        while (!classroomFull && iteration <= maxIterations) {
-            let assignedInThisIteration = false;
+        while (!classroomFull && cycle <= maxCycles) {
+            let assignedInThisCycle = false;
 
             for (const planClave of planClaves) {
                 const plan = grouped[planClave];
                 const currentAssigned = this.assignedOffers.get(planClave) || [];
 
-                if (currentAssigned.length >= iteration) continue;
+                // If this plan already has 'cycle' courses (or more), we skip to next plan for fairness
+                if (currentAssigned.length >= cycle) continue;
 
                 const availableOffers = plan.offers.filter(o =>
                     (o.isTheoretical || o.isPractical) &&
@@ -1097,35 +1184,30 @@ class ScheduleSimulator {
                     !currentAssigned.some(ao => ao.consecutivo === o.consecutivo)
                 );
 
+                let assignedForPlan = false;
+
+                // Priority: Pairs (ET + EP together)
                 const courseGroups = {};
                 availableOffers.forEach(o => {
-                    if (!courseGroups[o.courseCode]) courseGroups[o.courseCode] = { ET: [], EP: [], other: [] };
+                    if (!courseGroups[o.courseCode]) courseGroups[o.courseCode] = { ET: [], EP: [] };
                     if (o.isTheoretical) courseGroups[o.courseCode].ET.push(o);
                     else if (o.isPractical) courseGroups[o.courseCode].EP.push(o);
                 });
 
-                let assignedForPlan = false;
-
                 for (const code in courseGroups) {
                     const ets = courseGroups[code].ET;
                     const eps = courseGroups[code].EP;
-
                     for (const et of ets) {
                         for (const ep of eps) {
-                            const canPair = et.sessions.some(etS => {
-                                const etDay = this.getDayNumber(etS.CODIGODIA);
-                                return ep.sessions.some(epS => {
-                                    const epDay = this.getDayNumber(epS.CODIGODIA);
-                                    if (etDay !== epDay) return false;
-                                    return this.isConsecutive(etS.HORAFIN, epS.HORAINICIO) || this.isConsecutive(epS.HORAFIN, etS.HORAINICIO);
-                                });
-                            });
-
-                            if (canPair && this.canAssign(et) && this.canAssign(ep)) {
-                                this.assignOffer(planClave, [et, ep]);
-                                assignedForPlan = true;
-                                assignedInThisIteration = true;
-                                break;
+                            if (this.canAssign(et) && this.canAssign(ep)) {
+                                // Double check if they are consecutive or pairs
+                                const isPair = et.sessions.some(etS => ep.sessions.some(epS => this.getDayNumber(etS.CODIGODIA) === this.getDayNumber(epS.CODIGODIA) && (this.isConsecutive(etS.HORAFIN, epS.HORAINICIO) || this.isConsecutive(epS.HORAFIN, etS.HORAINICIO))));
+                                if (isPair) {
+                                    this.assignOffer(planClave, [et, ep]);
+                                    assignedForPlan = true;
+                                    assignedInThisCycle = true;
+                                    break;
+                                }
                             }
                         }
                         if (assignedForPlan) break;
@@ -1133,57 +1215,58 @@ class ScheduleSimulator {
                     if (assignedForPlan) break;
                 }
 
+                // If no pair found, try just any ET from this plan
                 if (!assignedForPlan) {
-                    const validETs = availableOffers.filter(o => o.isTheoretical)
-                        .sort((a, b) => {
-                            const dayA = this.getDayNumber(a.sessions[0].CODIGODIA);
-                            const dayB = this.getDayNumber(b.sessions[0].CODIGODIA);
-                            if (dayA !== dayB) return dayA - dayB;
-                            return a.sessions[0].HORAINICIO.localeCompare(b.sessions[0].HORAINICIO);
-                        });
-
+                    const validETs = availableOffers.filter(o => o.isTheoretical);
                     for (const et of validETs) {
                         if (this.canAssign(et)) {
                             this.assignOffer(planClave, [et]);
                             assignedForPlan = true;
-                            assignedInThisIteration = true;
+                            assignedInThisCycle = true;
                             break;
                         }
                     }
                 }
 
+                // Or any EP if no ET could be assigned
                 if (!assignedForPlan) {
-                    const validEPs = availableOffers.filter(o => o.isPractical)
-                        .sort((a, b) => {
-                            const dayA = this.getDayNumber(a.sessions[0].CODIGODIA);
-                            const dayB = this.getDayNumber(b.sessions[0].CODIGODIA);
-                            if (dayA !== dayB) return dayA - dayB;
-                            return a.sessions[0].HORAINICIO.localeCompare(b.sessions[0].HORAINICIO);
-                        });
-
+                    const validEPs = availableOffers.filter(o => o.isPractical);
                     for (const ep of validEPs) {
                         if (this.canAssign(ep)) {
                             this.assignOffer(planClave, [ep]);
                             assignedForPlan = true;
-                            assignedInThisIteration = true;
+                            assignedInThisCycle = true;
                             break;
                         }
                     }
                 }
             }
 
-            if (!assignedInThisIteration) {
-                classroomFull = true;
+            if (!assignedInThisCycle) {
+                cycle++; // If we couldn't assign the Nth course for ANY plan, maybe we can try the (N+1)th? 
+                // Wait, no. If we couldn't assign even 1 course for ANY plan in this round, it might be that the room is full enough.
+                // But let's check if there are ANY courses left at all.
+                let anyPossibleLeft = false;
+                for (const planClave of planClaves) {
+                    const plan = grouped[planClave];
+                    const currentAssigned = this.assignedOffers.get(planClave) || [];
+                    if (plan.offers.some(o => !currentAssigned.some(ao => ao.consecutivo === o.consecutivo) && this.canAssign(o))) {
+                        anyPossibleLeft = true;
+                        break;
+                    }
+                }
+                if (!anyPossibleLeft) classroomFull = true;
+
+                // Safety break to prevent infinite loops if something is weird
+                if (cycle > maxCycles) classroomFull = true;
             }
 
             const totalSlots = 6 * this.timeSlots.length;
-            const occupiedSlots = Object.keys(this.schedule).length;
-            if (occupiedSlots >= totalSlots) classroomFull = true;
-
-            iteration++;
+            if (Object.keys(this.schedule).length >= totalSlots) classroomFull = true;
         }
 
         this.updateUI();
+        Swal.fire('Optimización Completada', 'Se ha intentado llenar el aula de forma equitativa entre los planes cargados.', 'success');
     }
 }
 

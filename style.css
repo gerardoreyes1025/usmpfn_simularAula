@@ -1,30 +1,63 @@
 :root {
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --bg-dark: #0f172a;
-    --card-bg: rgba(30, 41, 59, 0.7);
+    /* Day/Night variables - Default is Night/Dark */
+    --bg-main: #0f172a;
+    --surface: rgba(30, 41, 59, 0.7);
+    --surface-solid: #1e293b;
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
     --border: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass: rgba(255, 255, 255, 0.03);
+    --grid-header-bg: rgba(15, 23, 42, 0.8);
+    --grid-time-bg: rgba(15, 23, 42, 0.5);
+    --grid-slot-bg: rgba(15, 23, 42, 0.2);
+
+    /* Constant variables */
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
     --accent: #10b981;
     --warning: #f59e0b;
     --danger: #ef4444;
-    --glass: rgba(255, 255, 255, 0.03);
-    --glass-border: rgba(255, 255, 255, 0.05);
 }
 
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
     font-family: 'Outfit', sans-serif;
 }
 
+/* body.light-mode {
+    --bg-main: #f1f5f9;
+    --surface: rgba(255, 255, 255, 0.8);
+    --surface-solid: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: rgba(0, 0, 0, 0.1);
+    --glass-border: rgba(0, 0, 0, 0.05);
+    --glass: rgba(0, 0, 0, 0.02);
+    --grid-header-bg: #e2e8f0;
+    --grid-time-bg: #f8fafc;
+    --grid-slot-bg: #ffffff;
+} */
+
+.light-mode {
+    --bg-main: #f1f5f9;
+    --surface: rgba(255, 255, 255, 0.8);
+    --surface-solid: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: rgba(0, 0, 0, 0.1);
+    --glass-border: rgba(0, 0, 0, 0.05);
+    --glass: rgba(0, 0, 0, 0.02);
+    --grid-header-bg: #e2e8f0;
+    --grid-time-bg: #f8fafc;
+    --grid-slot-bg: #ffffff;
+}
+
 body {
-    background-color: var(--bg-dark);
+    background-color: var(--bg-main);
     color: var(--text-main);
     min-height: 100vh;
     overflow-x: hidden;
+    transition: background-color 0.15s ease, color 0.15s ease;
     background-image:
         radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
@@ -42,11 +75,19 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 2rem;
-    background: var(--card-bg);
+    padding: 0.25rem 2rem;
+    background: var(--surface);
     backdrop-filter: blur(12px);
     border-radius: 1rem;
     border: 1px solid var(--glass-border);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    /* Centra verticalmente */
+    gap: 0.5rem;
+    /* Espacio entre icono y texto */
 }
 
 .logo h1 {
@@ -96,7 +137,8 @@ header {
     border-radius: 0.5rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    /* transition: all 0.2s; */
+    /* transition: background 0.2s ease, border-color 0.2s ease; */
 }
 
 .btn-primary:hover {
@@ -113,29 +155,58 @@ header {
     border-radius: 0.5rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    /* transition: all 0.2s; */
+    /* transition: background 0.2s ease, border-color 0.2s ease; */
 }
 
 .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.05);
 }
 
+.btn-theme {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 1.2rem;
+    /* margin-left: 1.5rem;
+    margin-right: -6rem; */
+}
+
+.btn-theme:hover {
+    background: var(--primary);
+    transform: rotate(30deg);
+}
+
+.light-mode .btn-theme {
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 main {
     display: grid;
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 380px 1fr;
     gap: 1rem;
     flex: 1;
     min-height: 0;
 }
 
 .sidebar {
-    background: var(--card-bg);
+    background: var(--surface);
     backdrop-filter: blur(12px);
     border-radius: 1rem;
     border: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: max-height 0.4s ease-in-out;
 }
 
 .sidebar-header {
@@ -158,6 +229,22 @@ main {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    transition: max-height 0.4s ease-in-out, opacity 0.3s, padding 0.3s;
+    overflow: hidden;
+    max-height: 500px;
+    padding: 1rem;
+}
+
+.filter-group.collapsed {
+    display: none;
+}
+
+.lists-container.panel-collapsed #filter-group-content {
+    display: none;
+}
+
+.lists-container.panel-collapsed #icon-filters {
+    transform: rotate(-90deg);
 }
 
 .filter-row {
@@ -172,13 +259,23 @@ main {
 
 .filter-group input[type="text"],
 .filter-group select {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--glass);
     border: 1px solid var(--border);
     border-radius: 0.4rem;
     padding: 0.5rem;
     color: var(--text-main);
     font-size: 0.85rem;
     outline: none;
+}
+
+.filter-group select option {
+    background-color: var(--surface-solid) !important;
+    color: var(--text-main) !important;
+}
+
+.light-mode .filter-group select option {
+    background-color: #ffffff !important;
+    color: #1e293b !important;
 }
 
 .filter-group input:focus,
@@ -221,7 +318,7 @@ main {
     align-items: center;
     cursor: pointer;
     user-select: none;
-    transition: background 0.2s;
+    /* transition: background 0.2s; */
 }
 
 .list-section-header:hover {
@@ -235,7 +332,7 @@ main {
 }
 
 .list-section-header h3 {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     color: var(--accent);
     font-weight: 600;
 }
@@ -257,7 +354,8 @@ main {
     border-radius: 0.4rem;
     font-size: 0.75rem;
     cursor: pointer;
-    transition: all 0.2s;
+    /* transition: all 0.2s; */
+    /* transition: background 0.2s ease, border-color 0.2s ease; */
 }
 
 .btn-icon:hover {
@@ -290,7 +388,8 @@ main {
     border: 1px solid var(--glass-border);
     border-radius: 0.75rem;
     padding: 0.75rem;
-    transition: all 0.3s ease;
+    /* transition: all 0.3s ease; */
+    /* transition: background 0.2s ease, border-color 0.2s ease; */
 }
 
 .plan-name {
@@ -368,9 +467,11 @@ main {
     border: 1px solid var(--glass-border);
     border-radius: 0.5rem;
     padding: 0.75rem;
+    padding-bottom: 0.25rem;
     margin-bottom: 0.5rem;
     cursor: pointer;
-    transition: all 0.2s;
+    /* transition: all 0.2s; */
+    /* transition: background 0.2s ease, border-color 0.2s ease; */
 }
 
 .offer-card:last-child {
@@ -452,7 +553,7 @@ main {
 }
 
 .schedule-container {
-    background: var(--card-bg);
+    background: var(--surface);
     backdrop-filter: blur(12px);
     border-radius: 1rem;
     border: 1px solid var(--glass-border);
@@ -471,7 +572,7 @@ main {
 }
 
 .grid-header {
-    background: rgba(15, 23, 42, 0.8);
+    background: var(--grid-header-bg);
     padding: 0.75rem;
     text-align: center;
     font-weight: 600;
@@ -480,7 +581,7 @@ main {
 }
 
 .time-cell {
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--grid-time-bg);
     padding: 0.5rem;
     text-align: center;
     font-size: 0.75rem;
@@ -492,10 +593,10 @@ main {
 }
 
 .slot-cell {
-    background: rgba(15, 23, 42, 0.2);
+    background: var(--grid-slot-bg);
     height: 75px;
     position: relative;
-    transition: background 0.2s;
+    /* transition: background 0.2s; */
 }
 
 .slot-cell:hover {
