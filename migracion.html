@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Migración de Aulas</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
+    <style>
+        .session-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .session-bar select {
+            max-width: 160px;
+            font-size: 0.8em;
+        }
+
+        #session-stats {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85em;
+        }
+
+        .sidebar {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto !important;
+        }
+
+        .lists-container {
+            flex: 1;
+            overflow-y: auto !important;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 2rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .assigned-block {
+            box-sizing: border-box;
+            word-wrap: break-word;
+            overflow: hidden;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <span class="icon">🚛</span>
+                <h1>Centro de <span>Migración de Aulas</span></h1>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">Cap. Req:</span>
+                    <span id="required-capacity">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Horas totales:</span>
+                    <span id="total-hours">0 h</span>
+                </div>
+                <button id="theme-toggle" class="btn-theme" title="Cambiar modo día/noche">
+                    <span class="theme-icon">🌙</span>
+                </button>
+            </div>
+            <div class="actions session-bar">
+                <!-- Session controls -->
+                <button id="btn-start-session" class="btn-primary" style="background:var(--success-color);">▶️ Iniciar
+                    Sesión</button>
+                <button id="btn-stop-session" class="btn-primary" style="background:var(--danger);display:none;">⏹️
+                    Detener</button>
+
+                <div id="session-stats">
+                    Aulas: <span id="session-count" class="badge">0</span>
+                    <select id="session-history" title="Aulas Simuladas">
+                        <option value="">- Historial -</option>
+                    </select>
+                    <button id="btn-remove-aula-mem" class="btn-icon" title="Remover aula de memoria"
+                        style="color:var(--danger)">🗑️</button>
+                </div>
+
+                <button id="btn-auto-migrate" class="btn-primary" style="background:var(--warning);display:none;">⚡
+                    Auto-Migrar</button>
+                <button id="btn-export-migrations" class="btn-primary" style="background:var(--accent);display:none;">📋
+                    Exportar Todo (CSV)</button>
+                <button id="btn-export-current" class="btn-primary" style="background:var(--primary);display:none;">📄
+                    Aula Actual (CSV)</button>
+                <button id="btn-export-session" class="btn-icon" title="Exportar Sesión (JSON)">💾</button>
+                <button id="btn-import-session" class="btn-icon" title="Importar Sesión (JSON)">📂</button>
+                <input type="file" id="import-json-file" style="display:none" accept=".json">
+
+                <a href="index.html" class="btn-secondary"
+                    style="text-decoration:none;display:inline-flex;align-items:center;">Optimización</a>
+            </div>
+        </header>
+
+        <main>
+            <aside class="sidebar">
+                <div class="lists-container">
+
+                    <!-- Panel de Migración -->
+                    <div class="list-section-header" id="toggle-filters">
+                        <div class="header-title">
+                            <span class="collapse-icon" id="icon-filters">▼</span>
+                            <h3>Panel de Migración</h3>
+                        </div>
+                    </div>
+                    <!-- <div id="filter-group-content" class="filter-group-container"> -->
+                    <div id="filter-group-content" class="filter-group-container"
+                        style="padding: 1rem; margin-bottom: 10px;">
+                        <div class="filter-group">
+                            <label style="font-size:0.9em;font-weight:600;margin-bottom:0.2rem;display:block;">Aula
+                                Origen a Vaciar</label>
+                            <div class="filter-row">
+                                <input type="text" id="source-aula" placeholder="Aula Origen (ej. 2101204)..."
+                                    style="flex:1;">
+                                <button id="load-source-aula" class="btn-primary"
+                                    style="padding:0.5rem;font-size:0.8rem;white-space:nowrap;">Cargar</button>
+                            </div>
+
+                            <div class="filter-row"
+                                style="margin-top:0.6rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                                <label
+                                    style="font-size:0.85em;display:flex;align-items:center;gap:0.4rem;cursor:pointer;"
+                                    title="Mover todas las horas del aula como un solo paquete">
+                                    <input type="checkbox" id="migrar-entera" checked> Aula Entera
+                                </label>
+                                <label
+                                    style="font-size:0.85em;display:flex;align-items:center;gap:0.4rem;cursor:pointer;"
+                                    title="Agrupar horas consecutivas del mismo curso">
+                                    <input type="checkbox" id="agrupar-bloques" checked> Agrupar Bloques
+                                </label>
+                            </div>
+
+                            <label
+                                style="font-size:0.9em;font-weight:600;margin-top:1rem;margin-bottom:0.4rem;display:block;">Filtros
+                                de Aulas Destino</label>
+
+                            <div class="filter-row"
+                                style="margin-bottom:0.5rem;flex-direction:column;align-items:flex-start;width:100%;">
+                                <label style="font-size:0.8em;margin-bottom:0.2rem;">Incluir Aulas Específicas (ej:
+                                    21012, 3012):</label>
+                                <input type="text" id="filter-inc-aulas"
+                                    placeholder="Opcional. Códigos separados por coma..." style="width:100%;">
+                            </div>
+
+                            <div class="filter-row"
+                                style="margin-bottom:0.5rem;flex-direction:column;align-items:flex-start;width:100%;">
+                                <label style="font-size:0.8em;margin-bottom:0.2rem;">Excluir Aulas Específicas:</label>
+                                <input type="text" id="filter-exc-aulas" placeholder="Opcional. Códigos prohibidos..."
+                                    style="width:100%;">
+                            </div>
+
+                            <div class="filter-row"
+                                style="margin-bottom:0.5rem;flex-direction:column;align-items:flex-start;width:100%;">
+                                <label style="font-size:0.8em;margin-bottom:0.2rem;">Incluir Pabellones /
+                                    Campus:</label>
+                                <div id="filter-include-container"
+                                    style="max-height:120px;overflow-y:auto;width:100%;border:1px solid var(--border);background:var(--glass);border-radius:4px;padding:0.5rem;">
+                                    <!-- Injected dynamically -->
+                                </div>
+                            </div>
+
+                            <div class="filter-row"
+                                style="margin-bottom:0.5rem;flex-direction:column;align-items:flex-start;width:100%;">
+                                <label style="font-size:0.8em;margin-bottom:0.2rem;">Excluir Pabellones /
+                                    Campus:</label>
+                                <div id="filter-exclude-container"
+                                    style="max-height:120px;overflow-y:auto;width:100%;border:1px solid var(--border);background:var(--glass);border-radius:4px;padding:0.5rem;">
+                                    <!-- Injected dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aulas Destino -->
+                    <div class="list-section-header suggestions-header" id="toggle-sugerencias">
+                        <div class="header-title">
+                            <span class="collapse-icon" id="icon-sugerencias">▼</span>
+                            <h3>Aulas Destino Sugeridas</h3>
+                            <span id="suggestions-count" class="badge">0</span>
+                        </div>
+                    </div>
+                    <!-- <div id="suggestions-list" class="plans-list suggestions-list"> -->
+                    <div id="suggestions-list" class="plans-list suggestions-list" style="padding: 1rem;">
+                        <div style="padding:1rem;text-align:center;color:var(--text-secondary);font-size:0.9em;">
+                            Carga un Aula Origen para ver sugerencias.
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="schedule-container">
+                <div class="schedule-grid" id="schedule-grid">
+                    <div class="grid-header">Hora</div>
+                    <div class="grid-header">Lunes</div>
+                    <div class="grid-header">Martes</div>
+                    <div class="grid-header">Miércoles</div>
+                    <div class="grid-header">Jueves</div>
+                    <div class="grid-header">Viernes</div>
+                    <div class="grid-header">Sábado</div>
+                    <!-- Time slots injected here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="migracion.js"></script>
+</body>
+
+</html>

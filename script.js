@@ -142,6 +142,7 @@ class ScheduleSimulator {
                     capacidad: offer.CapacidadPaquete,
                     sessions: [],
                     courseCode: this.getCourseCode(offer.ABREVIATURAEVENTO),
+                    abreviaturaPaquete: offer.ABREVIATURAPAQUETEEVENTOS || '',
                     isTheoretical: offer.ABREVIATURAEVENTO.includes('ET'),
                     isPractical: offer.ABREVIATURAEVENTO.includes('EP')
                 };
@@ -214,9 +215,11 @@ class ScheduleSimulator {
             let visibleOffers = plan.offers.filter(o => {
                 const isAssigned = currentAssigned.some(ao => ao.consecutivo === o.consecutivo);
 
-                // ALWAYS show if it is already assigned, bypassing filters
-                if (isAssigned) return true;
+                // First constraint: Must belong to the loaded aula
+                const belongsToLoadedAula = o.sessions.some(s => s.CODIGOAULA && s.CODIGOAULA.toString() === this.loadedAula);
+                if (!belongsToLoadedAula && !isAssigned) return false;
 
+                // Rest of filters
                 if (this.filters.program && !plan.name.toLowerCase().includes(this.filters.program.toLowerCase())) return false;
                 if (this.filters.course && !o.sessions[0].NombreCurso.toLowerCase().includes(this.filters.course.toLowerCase())) return false;
 
@@ -363,11 +366,12 @@ class ScheduleSimulator {
         Object.values(grouped).forEach(plan => {
             let visibleOffers = plan.offers;
 
-            // Only show offers that are NOT assigned and that CAN be assigned (fit in the schedule)
+            // Only show offers that are NOT assigned, NOT from the loaded aula, and that CAN be assigned
             const currentAssigned = this.assignedOffers.get(plan.clave) || [];
             visibleOffers = visibleOffers.filter(o => {
                 const isAlreadyAssigned = currentAssigned.some(ao => ao.consecutivo === o.consecutivo);
-                return !isAlreadyAssigned && this.canAssign(o);
+                const belongsToLoadedAula = o.sessions.some(s => s.CODIGOAULA && s.CODIGOAULA.toString() === this.loadedAula);
+                return !isAlreadyAssigned && !belongsToLoadedAula && this.canAssign(o);
             });
 
             if (this.filters.onlyEtEp) {
@@ -750,27 +754,35 @@ class ScheduleSimulator {
         }
 
         const rows = [
-            ['Plan (Clave)', 'Plan', 'Curso', 'Abreviatura', 'Docente', 'Día', 'Hora Inicio', 'Hora Fin', 'Aula']
+            ['Plan (Clave)', 'Plan', 'Curso', 'Abreviatura', 'Abreviatura Paquete', 'Nombres Docente', 'SAP Docente', 'Día', 'Hora Inicio', 'Hora Fin', 'Aula', 'Código Aula', 'Pabellon']
         ];
 
         this.assignedOffers.forEach((offers, planClave) => {
             offers.forEach(offer => {
                 offer.displayTimes.forEach(dt => {
-                    const aula = offer.sessions[0].CODIGOAULA || '';
+                    const aula = offer.sessions[0].NombreAula || offer.sessions[0].CODIGOAULA || '';
+                    const codigoAula = offer.sessions[0].CodigoAula || offer.sessions[0].CODIGOAULA || '';
+                    const pabellon = offer.sessions[0].CodigoPabellon || '';
                     const planName = offer.sessions[0].PlanEstudio || offer.sessions[0].DENOMINACION || '';
                     const curso = offer.sessions[0].NombreCurso || '';
-                    const docente = offer.sessions[0].NOMBRES ? `${offer.sessions[0].APELLIDOPATERNO} ${offer.sessions[0].APELLIDOMATERNO}, ${offer.sessions[0].NOMBRES} (${offer.sessions[0].CODIGOSAPDOCENTE})` : 'Sin asignar';
+                    const docenteNombres = offer.sessions[0].NOMBRES ? `${offer.sessions[0].APELLIDOPATERNO} ${offer.sessions[0].APELLIDOMATERNO}, ${offer.sessions[0].NOMBRES}` : 'Sin asignar';
+                    const docenteSAP = offer.sessions[0].NOMBRES ? offer.sessions[0].CODIGOSAPDOCENTE : '';
+                    const abrevPaquete = offer.sessions[0].ABREVIATURAPAQUETEEVENTOS || '';
 
                     rows.push([
                         planClave,
                         `"${planName}"`,
                         `"${curso}"`,
                         offer.abreviatura,
-                        `"${docente}"`,
+                        abrevPaquete,
+                        `"${docenteNombres}"`,
+                        docenteSAP,
                         this.getDayName(dt.day),
                         dt.start,
                         dt.end,
-                        aula
+                        aula,
+                        codigoAula,
+                        pabellon
                     ]);
                 });
             });
@@ -782,7 +794,7 @@ class ScheduleSimulator {
     downloadSuggestionsCSV() {
         const grouped = this.getGroupedOffers();
         const rows = [
-            ['Plan (Clave)', 'Plan', 'Curso', 'Abreviatura', 'Docente', 'Capacidad', 'Horarios', 'Aula']
+            ['Plan (Clave)', 'Plan', 'Curso', 'Abreviatura', 'Abreviatura Paquete', 'Nombres Docente', 'SAP Docente', 'Capacidad', 'Horarios', 'Aula', 'Código Aula', 'Pabellon']
         ];
 
         let count = 0;
@@ -802,20 +814,28 @@ class ScheduleSimulator {
             visibleOffers.forEach(o => {
                 count++;
                 const times = o.displayTimes.map(dt => `${this.getDayName(dt.day).substring(0, 2)} ${dt.start}-${dt.end}`).join(' | ');
-                const aula = o.sessions[0].CODIGOAULA || '';
+                const aula = o.sessions[0].NombreAula || o.sessions[0].CODIGOAULA || '';
+                const codigoAula = o.sessions[0].CodigoAula || o.sessions[0].CODIGOAULA || '';
+                const pabellon = o.sessions[0].CodigoPabellon || '';
                 const planName = o.sessions[0].PlanEstudio || o.sessions[0].DENOMINACION || '';
                 const curso = o.sessions[0].NombreCurso || '';
-                const docente = o.sessions[0].NOMBRES ? `${o.sessions[0].APELLIDOPATERNO} ${o.sessions[0].APELLIDOMATERNO}, ${o.sessions[0].NOMBRES} (${o.sessions[0].CODIGOSAPDOCENTE})` : 'Sin asignar';
+                const docenteNombres = o.sessions[0].NOMBRES ? `${o.sessions[0].APELLIDOPATERNO} ${o.sessions[0].APELLIDOMATERNO}, ${o.sessions[0].NOMBRES}` : 'Sin asignar';
+                const docenteSAP = o.sessions[0].NOMBRES ? o.sessions[0].CODIGOSAPDOCENTE : '';
+                const abrevPaquete = o.sessions[0].ABREVIATURAPAQUETEEVENTOS || '';
 
                 rows.push([
                     plan.clave,
                     `"${planName}"`,
                     `"${curso}"`,
                     o.abreviatura,
-                    `"${docente}"`,
+                    abrevPaquete,
+                    `"${docenteNombres}"`,
+                    docenteSAP,
                     o.capacidad,
                     `"${times}"`,
-                    aula
+                    aula,
+                    codigoAula,
+                    pabellon
                 ]);
             });
         });
@@ -1186,58 +1206,66 @@ class ScheduleSimulator {
 
                 let assignedForPlan = false;
 
-                // Priority: Pairs (ET + EP together)
-                const courseGroups = {};
+                // Priority: Atomic Blocks (Consecutive sessions of the same package on the same day)
+                const packageGroups = {};
                 availableOffers.forEach(o => {
-                    if (!courseGroups[o.courseCode]) courseGroups[o.courseCode] = { ET: [], EP: [] };
-                    if (o.isTheoretical) courseGroups[o.courseCode].ET.push(o);
-                    else if (o.isPractical) courseGroups[o.courseCode].EP.push(o);
+                    const pkg = o.abreviaturaPaquete || 'individual-' + o.consecutivo;
+                    if (!packageGroups[pkg]) packageGroups[pkg] = [];
+                    packageGroups[pkg].push(o);
                 });
 
-                for (const code in courseGroups) {
-                    const ets = courseGroups[code].ET;
-                    const eps = courseGroups[code].EP;
-                    for (const et of ets) {
-                        for (const ep of eps) {
-                            if (this.canAssign(et) && this.canAssign(ep)) {
-                                // Double check if they are consecutive or pairs
-                                const isPair = et.sessions.some(etS => ep.sessions.some(epS => this.getDayNumber(etS.CODIGODIA) === this.getDayNumber(epS.CODIGODIA) && (this.isConsecutive(etS.HORAFIN, epS.HORAINICIO) || this.isConsecutive(epS.HORAFIN, etS.HORAINICIO))));
-                                if (isPair) {
-                                    this.assignOffer(planClave, [et, ep]);
-                                    assignedForPlan = true;
-                                    assignedInThisCycle = true;
-                                    break;
+                // Generate candidates (Blocks or independent offers)
+                const candidates = [];
+                Object.values(packageGroups).forEach(offersInPkg => {
+                    if (offersInPkg.length === 1) {
+                        candidates.push({ offers: offersInPkg, type: 'single' });
+                        return;
+                    }
+
+                    // For packages with multiple offers, check for consecutiveness on the same day
+                    // We check all sessions of all offers in the package
+                    const allSessions = [];
+                    offersInPkg.forEach(o => {
+                        o.sessions.forEach(s => {
+                            allSessions.push({ ...s, parentOffer: o });
+                        });
+                    });
+
+                    // Find consecutive ones
+                    const usedOffers = new Set();
+                    for (let i = 0; i < allSessions.length; i++) {
+                        for (let j = 0; j < allSessions.length; j++) {
+                            if (i === j) continue;
+                            const s1 = allSessions[i];
+                            const s2 = allSessions[j];
+                            if (s1.CODIGODIA === s2.CODIGODIA && this.isConsecutive(s1.HORAFIN, s2.HORAINICIO)) {
+                                if (s1.parentOffer.consecutivo !== s2.parentOffer.consecutivo) {
+                                    candidates.push({ offers: [s1.parentOffer, s2.parentOffer], type: 'block' });
+                                    usedOffers.add(s1.parentOffer.consecutivo);
+                                    usedOffers.add(s2.parentOffer.consecutivo);
                                 }
                             }
                         }
-                        if (assignedForPlan) break;
                     }
-                    if (assignedForPlan) break;
-                }
 
-                // If no pair found, try just any ET from this plan
-                if (!assignedForPlan) {
-                    const validETs = availableOffers.filter(o => o.isTheoretical);
-                    for (const et of validETs) {
-                        if (this.canAssign(et)) {
-                            this.assignOffer(planClave, [et]);
-                            assignedForPlan = true;
-                            assignedInThisCycle = true;
-                            break;
+                    // Any offer not part of a block remains independent
+                    offersInPkg.forEach(o => {
+                        if (!usedOffers.has(o.consecutivo)) {
+                            candidates.push({ offers: [o], type: 'single' });
                         }
-                    }
-                }
+                    });
+                });
 
-                // Or any EP if no ET could be assigned
-                if (!assignedForPlan) {
-                    const validEPs = availableOffers.filter(o => o.isPractical);
-                    for (const ep of validEPs) {
-                        if (this.canAssign(ep)) {
-                            this.assignOffer(planClave, [ep]);
-                            assignedForPlan = true;
-                            assignedInThisCycle = true;
-                            break;
-                        }
+                // Sort candidates to prioritize blocks
+                candidates.sort((a, b) => (b.type === 'block' ? 1 : 0) - (a.type === 'block' ? 1 : 0));
+
+                for (const candidate of candidates) {
+                    const canFitAll = candidate.offers.every(o => this.canAssign(o));
+                    if (canFitAll) {
+                        this.assignOffer(planClave, candidate.offers);
+                        assignedForPlan = true;
+                        assignedInThisCycle = true;
+                        break;
                     }
                 }
             }

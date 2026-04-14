@@ -45,6 +45,7 @@
 
     /* Estados */
     --accent: #16a34a;
+    --success-color: #16a34a;
     --warning: #f59e0b;
     --danger: #dc2626;
 }
@@ -252,6 +253,10 @@ main {
     flex-direction: column;
     overflow: hidden;
     /* transition: max-height 0.4s ease-in-out; */
+
+    height: 100vh;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 .sidebar-header {
@@ -276,7 +281,7 @@ main {
     gap: 0.5rem;
     transition: max-height 0.4s ease-in-out, opacity 0.3s, padding 0.3s;
     overflow: hidden;
-    max-height: 500px;
+    max-height: 800px;
     padding: 1rem;
 }
 
@@ -288,6 +293,78 @@ main {
     display: none;
 }
 
+/* Aca empieza */
+
+/* Contenedor del Panel de Migración */
+#filter-group-content {
+    min-height: 100px;
+    padding-right: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Contenedor de Aulas Sugeridas */
+#suggestions-list {
+    min-height: 100px;
+    padding-right: 8px;
+}
+
+/* Estilo para las barras de scroll (opcional para que se vean finas) */
+#filter-group-content::-webkit-scrollbar,
+#suggestions-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+#filter-group-content::-webkit-scrollbar-thumb,
+#suggestions-list::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 10px;
+}
+
+.filter-group-container,
+.suggestions-list {
+    overflow-y: auto;
+    /* Scroll independiente */
+    flex: 1;
+    /* Hace que ambas secciones compartan el espacio 50/50 */
+    min-height: 200px;
+    /* Evita que se colapsen demasiado */
+    padding-bottom: 15px;
+    /* Respiro al final del contenido */
+}
+
+/* Mejora visual de los encabezados para que no parezcan pegados */
+.list-section-header {
+    padding: 12px 5px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 5px;
+}
+
+
+
+
+.filter-group-container,
+.suggestions-list {
+    overflow-y: auto;
+    /* Scroll independiente */
+    flex: 1;
+    /* Hace que ambas secciones compartan el espacio 50/50 */
+    min-height: 200px;
+    /* Evita que se colapsen demasiado */
+    padding-bottom: 15px;
+    /* Respiro al final del contenido */
+}
+
+/* Mejora visual de los encabezados para que no parezcan pegados */
+.list-section-header {
+    padding: 12px 5px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 5px;
+}
+
+
+/*Aca termina*/
 .lists-container.panel-collapsed #icon-filters {
     transform: rotate(-90deg);
 }
@@ -349,8 +426,10 @@ main {
 .lists-container {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    overflow: hidden;
+    /* flex: 1; */
+    /* overflow: hidden; */
+    height: 100%;
+    gap: 10px;
 }
 
 .list-section-header {
@@ -696,6 +775,63 @@ main {
         opacity: 1;
         transform: scale(1);
     }
+}
+
+.assigned-block.plan-1 {
+    background-color: var(--danger);
+    border-left: 4px solid #da3b26;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-2 {
+    background-color: var(--primary);
+    border-left: 4px solid #0056b3;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-3 {
+    background-color: var(--warning);
+    border-left: 4px solid #cc7400;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-4 {
+    background-color: var(--accent);
+    border-left: 4px solid #1c6628;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-5 {
+    background-color: #6b1cc6;
+    border-left: 4px solid #4a138c;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-6 {
+    background-color: #14808c;
+    border-left: 4px solid #0e5a62;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-7 {
+    background-color: #a32279;
+    border-left: 4px solid #721855;
+    opacity: 0.8;
+}
+
+.assigned-block.plan-8 {
+    background-color: #8e8d1a;
+    border-left: 4px solid #636212;
+    opacity: 0.8;
+}
+
+.selected-block {
+    outline: 3px solid var(--success-color);
+    box-shadow: 0 0 15px rgba(23, 201, 100, 0.5);
+    z-index: 10;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+    opacity: 1 !important;
 }
 
 /* Custom Scrollbar */
